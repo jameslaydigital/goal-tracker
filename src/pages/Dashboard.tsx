@@ -17,15 +17,12 @@ export default function Dashboard() {
           Workouts
         </button>
 
-        <div className="flex flex-col gap-2">
-          <button
-            disabled
-            className="w-full py-4 px-6 rounded-xl bg-surface-800/50 text-surface-500 text-lg font-semibold cursor-not-allowed"
-          >
-            Logging
-          </button>
-          <p className="text-surface-600 text-xs text-center">Coming soon</p>
-        </div>
+        <button
+          onClick={() => navigate('/sessions')}
+          className="w-full py-4 px-6 rounded-xl bg-surface-800 text-surface-50 text-lg font-semibold active:bg-surface-700 transition-colors"
+        >
+          Sessions
+        </button>
 
         <div className="flex flex-col gap-2">
           <button
