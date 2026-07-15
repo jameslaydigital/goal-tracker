@@ -195,7 +195,7 @@ export default function PlaylistEdit() {
               {/* Sets */}
               <div className="px-4 pb-4 flex flex-col gap-1.5">
                 {ex.sets.map(set => (
-                  <div key={set.id} className="flex items-center gap-2 bg-surface-700/50 rounded-lg p-2">
+                  <div key={set.id} className="flex items-center gap-2 bg-surface-700/50 rounded-lg p-2 flex-wrap">
                     <span className="text-surface-500 text-xs font-mono min-w-[3rem]">
                       Set {set.order + 1}
                     </span>
@@ -250,11 +250,9 @@ export default function PlaylistEdit() {
 
                     <span className="text-surface-500 text-xs">{set.weightUnit}</span>
 
-                    <div className="flex-1" />
-
                     <button
                       onClick={() => addSetToExercise(ex.id, set)}
-                      className="p-1 text-surface-400 hover:text-surface-200 transition-colors text-xs"
+                      className="ml-auto p-1 text-surface-400 hover:text-surface-200 transition-colors text-xs"
                       title="Duplicate set"
                     >
                       DUP
