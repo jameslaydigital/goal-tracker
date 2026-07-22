@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
+import { generateId } from '../utils'
 import type { ExerciseSet, Session, SessionExercise } from '../types'
 
 function clamp(v: number, min: number, max: number): number {
@@ -39,6 +40,8 @@ export default function WorkoutMode() {
 
   const [animatingSetId, setAnimatingSetId] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const pendingRef = useRef<{ exIdx: number; setIdx: number } | null>(null)
 
   useEffect(() => {
     if (!data) return
@@ -46,6 +49,32 @@ export default function WorkoutMode() {
       document.documentElement.requestFullscreen?.().catch(() => {})
     }
   }, [data?.session.status])
+
+  // Countdown timer
+  useEffect(() => {
+    if (countdown === null) return
+    if (countdown <= 0) {
+      advanceToNext()
+      return
+    }
+    const timer = setTimeout(() => setCountdown(c => c !== null ? c - 1 : null), 1000)
+    return () => clearTimeout(timer)
+  }, [countdown])
+
+  function advanceToNext() {
+    const target = pendingRef.current
+    pendingRef.current = null
+    setCountdown(null)
+    if (!target) return
+    db.sessions.update(session.id, {
+      playheadExerciseIndex: target.exIdx,
+      playheadSetIndex: target.setIdx,
+    })
+  }
+
+  function skipCountdown() {
+    advanceToNext()
+  }
 
   if (!data) {
     return (
@@ -101,10 +130,9 @@ export default function WorkoutMode() {
       return
     }
 
-    await db.sessions.update(session.id, {
-      playheadExerciseIndex: next.exIdx,
-      playheadSetIndex: next.setIdx,
-    })
+    // Start countdown before advancing to next set
+    pendingRef.current = next
+    setCountdown(30)
   }
 
   async function skipSet() {
@@ -205,9 +233,74 @@ export default function WorkoutMode() {
     navigate(`/playlists/${session.playlistId}/session`)
   }
 
+  async function addExerciseToSession() {
+    if (!sessionId) return
+    const name = prompt('Exercise name:')
+    if (!name?.trim()) return
+
+    const newEx: SessionExercise = {
+      id: generateId(),
+      sessionId,
+      name: name.trim(),
+      order: exercises.length,
+    }
+
+    const newSet: ExerciseSet = {
+      id: generateId(),
+      exerciseId: newEx.id,
+      sessionId,
+      sessionName: session.playlistName,
+      exerciseName: newEx.name,
+      order: 0,
+      reps: 10,
+      weight: 0,
+      weightUnit: 'lbs',
+      completed: false,
+      completedAt: null,
+      logged: false,
+    }
+
+    await db.transaction('rw', db.sessionExercises, db.sessionSets, async () => {
+      await db.sessionExercises.add(newEx)
+      await db.sessionSets.add(newSet)
+    })
+
+    setShowMenu(false)
+  }
+
   function getProgressPercent(): number {
     if (totalSets === 0) return 0
     return (completedSets / totalSets) * 100
+  }
+
+  // ── Countdown overlay ──
+  if (countdown !== null) {
+    const nextExIdx = pendingRef.current?.exIdx ?? 0
+    const nextEx = exercises[nextExIdx]
+    return (
+      <div
+        className="fixed inset-0 z-50 bg-surface-950/95 flex flex-col items-center justify-center gap-8 p-6"
+        onClick={skipCountdown}
+      >
+        <p className="text-surface-400 text-sm">Next set</p>
+        <h2 className="text-2xl font-bold text-surface-50">{nextEx?.name ?? ''}</h2>
+        <div className="text-7xl font-bold text-surface-50 font-mono tabular-nums">
+          {countdown}
+        </div>
+        <div className="w-48 h-2 bg-surface-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-blue-500 rounded-full transition-all duration-1000"
+            style={{ width: `${(countdown / 30) * 100}%` }}
+          />
+        </div>
+        <button
+          onClick={e => { e.stopPropagation(); skipCountdown() }}
+          className="px-8 py-3 rounded-xl bg-surface-800 text-surface-200 text-sm font-medium active:bg-surface-700 transition-colors"
+        >
+          Skip
+        </button>
+      </div>
+    )
   }
 
   if (allCompleted) {
@@ -266,7 +359,7 @@ export default function WorkoutMode() {
 
       {/* Jump menu */}
       {showMenu && (
-        <div className="absolute top-16 right-4 left-4 z-40 bg-surface-800 rounded-xl shadow-xl border border-surface-700 max-h-60 overflow-y-auto">
+        <div className="absolute top-16 right-4 left-4 z-40 bg-surface-800 rounded-xl shadow-xl border border-surface-700 max-h-72 overflow-y-auto">
           {exercises.map((ex, i) => {
             const exSets = setsByExercise.get(ex.id) ?? []
             const done = exSets.every(s => s.completed)
@@ -293,6 +386,12 @@ export default function WorkoutMode() {
               </button>
             )
           })}
+          <button
+            onClick={addExerciseToSession}
+            className="w-full px-4 py-3 text-left text-sm text-blue-400 border-t border-surface-700 active:bg-surface-700 transition-colors"
+          >
+            + Add exercise
+          </button>
         </div>
       )}
 

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { generateId } from '../utils'
+import { SortableGroup, SortableItem, DragHandle } from '../components/SortableList'
 import type { Exercise, ExerciseTemplateSet, Playlist } from '../types'
 
 const DEFAULT_WEIGHT_UNIT = 'lbs'
@@ -111,6 +112,27 @@ export default function PlaylistEdit() {
     )
   }
 
+  function handleReorderExercise(oldIndex: number, newIndex: number) {
+    setExercises(prev => {
+      const next = [...prev]
+      const [moved] = next.splice(oldIndex, 1)
+      next.splice(newIndex, 0, moved)
+      return next.map((ex, i) => ({ ...ex, order: i }))
+    })
+  }
+
+  const handleReorderSet = useCallback((exerciseId: string, oldIndex: number, newIndex: number) => {
+    setExercises(prev =>
+      prev.map(ex => {
+        if (ex.id !== exerciseId) return ex
+        const next = [...ex.sets]
+        const [moved] = next.splice(oldIndex, 1)
+        next.splice(newIndex, 0, moved)
+        return { ...ex, sets: next.map((s, i) => ({ ...s, order: i })) }
+      }),
+    )
+  }, [])
+
   async function handleSave() {
     if (!name.trim()) return
 
@@ -162,120 +184,130 @@ export default function PlaylistEdit() {
         <h2 className="text-surface-300 font-semibold">Exercises</h2>
 
         <div className="flex flex-col gap-3 flex-1">
-          {exercises.map((ex, i) => (
-            <div key={ex.id} className="bg-surface-800 rounded-xl overflow-hidden">
-              {/* Exercise header */}
-              <div className="flex items-center gap-2 p-4 pb-2">
-                <span className="text-surface-500 text-sm font-mono">{i + 1}.</span>
-                <input
-                  type="text"
-                  placeholder="Exercise name"
-                  value={ex.name}
-                  onChange={e => updateExercise(ex.id, { name: e.target.value })}
-                  className="flex-1 p-2 rounded-lg bg-surface-700 text-surface-50 placeholder-surface-500 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <select
-                  value={ex.weightUnit}
-                  onChange={e => updateExercise(ex.id, { weightUnit: e.target.value })}
-                  className="p-2 rounded-lg bg-surface-700 text-surface-50 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option>lbs</option>
-                  <option>kg</option>
-                  <option>body</option>
-                  <option>min</option>
-                </select>
-                <button
-                  onClick={() => removeExercise(ex.id)}
-                  className="p-2 text-red-400 hover:text-red-300 transition-colors"
-                >
-                  &times;
-                </button>
-              </div>
-
-              {/* Sets */}
-              <div className="px-4 pb-4 flex flex-col gap-1.5">
-                {ex.sets.map(set => (
-                  <div key={set.id} className="flex items-center gap-2 bg-surface-700/50 rounded-lg p-2 flex-wrap">
-                    <span className="text-surface-500 text-xs font-mono min-w-[3rem]">
-                      Set {set.order + 1}
-                    </span>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => updateSetInExercise(ex.id, set.id, { reps: clamp(Number(set.reps) - 1, 0, 9999) })}
-                        className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        value={set.reps}
-                        onChange={e => updateSetInExercise(ex.id, set.id, { reps: Math.max(0, parseFloat(e.target.value) || 0) })}
-                        className="w-14 p-1 rounded bg-surface-700 text-surface-50 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <button
-                        onClick={() => updateSetInExercise(ex.id, set.id, { reps: clamp(Number(set.reps) + 1, 0, 9999) })}
-                        className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <span className="text-surface-600 text-xs">@</span>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => updateSetInExercise(ex.id, set.id, { weight: clamp(Number(set.weight) - 5, 0, 99999) })}
-                        className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        value={set.weight}
-                        onChange={e => updateSetInExercise(ex.id, set.id, { weight: Math.max(0, parseFloat(e.target.value) || 0) })}
-                        className="w-16 p-1 rounded bg-surface-700 text-surface-50 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      />
-                      <button
-                        onClick={() => updateSetInExercise(ex.id, set.id, { weight: clamp(Number(set.weight) + 5, 0, 99999) })}
-                        className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <span className="text-surface-500 text-xs">{set.weightUnit}</span>
-
-                    <button
-                      onClick={() => addSetToExercise(ex.id, set)}
-                      className="ml-auto p-1 text-surface-400 hover:text-surface-200 transition-colors text-xs"
-                      title="Duplicate set"
+          <SortableGroup items={exercises} onReorder={handleReorderExercise}>
+            {exercises.map((ex, i) => (
+              <SortableItem key={ex.id} id={ex.id}>
+                <div className="bg-surface-800 rounded-xl overflow-hidden">
+                  {/* Exercise header */}
+                  <div className="flex items-center gap-2 p-4 pb-2">
+                    <DragHandle />
+                    <span className="text-surface-500 text-sm font-mono">{i + 1}.</span>
+                    <input
+                      type="text"
+                      placeholder="Exercise name"
+                      value={ex.name}
+                      onChange={e => updateExercise(ex.id, { name: e.target.value })}
+                      className="flex-1 p-2 rounded-lg bg-surface-700 text-surface-50 placeholder-surface-500 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <select
+                      value={ex.weightUnit}
+                      onChange={e => updateExercise(ex.id, { weightUnit: e.target.value })}
+                      className="p-2 rounded-lg bg-surface-700 text-surface-50 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      DUP
-                    </button>
+                      <option>lbs</option>
+                      <option>kg</option>
+                      <option>body</option>
+                      <option>min</option>
+                    </select>
                     <button
-                      onClick={() => removeSetFromExercise(ex.id, set.id)}
-                      className="p-1 text-red-400 hover:text-red-300 transition-colors text-xs"
-                      title="Remove set"
+                      onClick={() => removeExercise(ex.id)}
+                      className="p-2 text-red-400 hover:text-red-300 transition-colors"
                     >
-                      DEL
+                      &times;
                     </button>
                   </div>
-                ))}
 
-                <button
-                  onClick={() => addSetToExercise(ex.id)}
-                  className="w-full py-2 rounded-lg bg-surface-700/50 text-surface-400 text-sm active:bg-surface-700 transition-colors"
-                >
-                  + Add set
-                </button>
-              </div>
-            </div>
-          ))}
+                  {/* Sets */}
+                  <div className="px-4 pb-4 flex flex-col gap-1.5">
+                    <SortableGroup items={ex.sets} onReorder={(oldIdx, newIdx) => handleReorderSet(ex.id, oldIdx, newIdx)}>
+                      {ex.sets.map(set => (
+                        <SortableItem key={set.id} id={set.id}>
+                          <div className="flex items-center gap-1.5 bg-surface-700/50 rounded-lg p-2 flex-wrap">
+                            <DragHandle className="text-xs" />
+                            <span className="text-surface-500 text-xs font-mono min-w-[3rem]">
+                              Set {set.order + 1}
+                            </span>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => updateSetInExercise(ex.id, set.id, { reps: clamp(Number(set.reps) - 1, 0, 9999) })}
+                                className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                value={set.reps}
+                                onChange={e => updateSetInExercise(ex.id, set.id, { reps: Math.max(0, parseFloat(e.target.value) || 0) })}
+                                className="w-14 p-1 rounded bg-surface-700 text-surface-50 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              />
+                              <button
+                                onClick={() => updateSetInExercise(ex.id, set.id, { reps: clamp(Number(set.reps) + 1, 0, 9999) })}
+                                className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            <span className="text-surface-600 text-xs">@</span>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => updateSetInExercise(ex.id, set.id, { weight: clamp(Number(set.weight) - 5, 0, 99999) })}
+                                className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                value={set.weight}
+                                onChange={e => updateSetInExercise(ex.id, set.id, { weight: Math.max(0, parseFloat(e.target.value) || 0) })}
+                                className="w-16 p-1 rounded bg-surface-700 text-surface-50 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              />
+                              <button
+                                onClick={() => updateSetInExercise(ex.id, set.id, { weight: clamp(Number(set.weight) + 5, 0, 99999) })}
+                                className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            <span className="text-surface-500 text-xs">{set.weightUnit}</span>
+
+                            <button
+                              onClick={() => addSetToExercise(ex.id, set)}
+                              className="ml-auto p-1 text-surface-400 hover:text-surface-200 transition-colors text-xs"
+                              title="Duplicate set"
+                            >
+                              DUP
+                            </button>
+                            <button
+                              onClick={() => removeSetFromExercise(ex.id, set.id)}
+                              className="p-1 text-red-400 hover:text-red-300 transition-colors text-xs"
+                              title="Remove set"
+                            >
+                              DEL
+                            </button>
+                          </div>
+                        </SortableItem>
+                      ))}
+                    </SortableGroup>
+
+                    <button
+                      onClick={() => addSetToExercise(ex.id)}
+                      className="w-full py-2 rounded-lg bg-surface-700/50 text-surface-400 text-sm active:bg-surface-700 transition-colors"
+                    >
+                      + Add set
+                    </button>
+                  </div>
+                </div>
+              </SortableItem>
+            ))}
+          </SortableGroup>
 
           <button
             onClick={addExercise}

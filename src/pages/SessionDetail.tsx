@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { generateId } from '../utils'
+import { SortableGroup, SortableItem, DragHandle } from '../components/SortableList'
 import type { ExerciseSet, SessionExercise } from '../types'
 
 const DEFAULT_WEIGHT_UNIT = 'lbs'
@@ -88,7 +89,19 @@ export default function SessionDetail() {
   }
 
   async function removeSetFromExercise(setId: string) {
+    if (!data) return
+    const set = sets.find(s => s.id === setId)
+    if (!set) return
     await db.sessionSets.delete(setId)
+    // Re-index remaining sets for this exercise
+    const remaining = sets
+      .filter(s => s.exerciseId === set.exerciseId && s.id !== setId)
+      .sort((a, b) => a.order - b.order)
+    for (const [i, s] of remaining.entries()) {
+      if (s.order !== i) {
+        await db.sessionSets.update(s.id, { order: i })
+      }
+    }
   }
 
   async function updateSet(setId: string, fields: Partial<ExerciseSet>) {
@@ -134,7 +147,47 @@ export default function SessionDetail() {
       await db.sessionExercises.delete(exerciseId)
       await db.sessionSets.bulkDelete(exSets.map(s => s.id))
     })
+    // Re-index remaining exercises
+    const remaining = exercises
+      .filter(e => e.id !== exerciseId)
+      .sort((a, b) => a.order - b.order)
+    for (const [i, e] of remaining.entries()) {
+      if (e.order !== i) {
+        await db.sessionExercises.update(e.id, { order: i })
+      }
+    }
   }
+
+  async function handleReorderExercise(oldIndex: number, newIndex: number) {
+    if (!data) return
+    const next = [...data.exercises]
+    const [moved] = next.splice(oldIndex, 1)
+    next.splice(newIndex, 0, moved)
+    await db.transaction('rw', db.sessionExercises, async () => {
+      for (const [i, ex] of next.entries()) {
+        if (ex.order !== i) {
+          await db.sessionExercises.update(ex.id, { order: i })
+        }
+      }
+    })
+  }
+
+  const handleReorderSet = useCallback(async (exerciseId: string, oldIndex: number, newIndex: number) => {
+    if (!data) return
+    const exSets = data.sets
+      .filter(s => s.exerciseId === exerciseId)
+      .sort((a, b) => a.order - b.order)
+    const next = [...exSets]
+    const [moved] = next.splice(oldIndex, 1)
+    next.splice(newIndex, 0, moved)
+    await db.transaction('rw', db.sessionSets, async () => {
+      for (const [i, s] of next.entries()) {
+        if (s.order !== i) {
+          await db.sessionSets.update(s.id, { order: i })
+        }
+      }
+    })
+  }, [data])
 
   async function deleteSession() {
     if (!sessionId) return
@@ -200,132 +253,139 @@ export default function SessionDetail() {
       </div>
 
       <div className="flex flex-col gap-2 flex-1">
-        {exercises.map(ex => {
-          const exSets = getSets(ex.id)
-          return (
-            <div key={ex.id} className="bg-surface-800 rounded-xl overflow-hidden">
-              <div className="flex items-center">
-                <button
-                  onClick={() => toggleExpand(ex.id)}
-                  className="flex items-center gap-3 p-4 text-left flex-1"
-                >
-                  <span className="text-surface-500 text-sm font-mono w-6">{ex.order + 1}</span>
-                  <span className="flex-1 text-surface-50 font-medium">{ex.name}</span>
-                  <span className="text-surface-400 text-xs">
-                    {exSets.length} set{exSets.length !== 1 ? 's' : ''}
-                  </span>
-                  <span className="text-surface-500 text-sm">
-                    {expanded.has(ex.id) ? '\u25B2' : '\u25BC'}
-                  </span>
-                </button>
-                <button
-                  onClick={() => removeExercise(ex.id)}
-                  className="px-3 py-1 text-red-400 hover:text-red-300 transition-colors text-xs"
-                  title="Remove exercise"
-                >
-                  DEL
-                </button>
-              </div>
-
-              {expanded.has(ex.id) && (
-                <div className="px-4 pb-4 flex flex-col gap-2">
-                  {exSets.map(set => (
-                    <div
-                      key={set.id}
-                      className="flex items-center gap-2 bg-surface-700/50 rounded-lg p-2"
+        <SortableGroup items={exercises} onReorder={handleReorderExercise}>
+          {exercises.map(ex => {
+            const exSets = getSets(ex.id)
+            return (
+              <SortableItem key={ex.id} id={ex.id}>
+                <div className="bg-surface-800 rounded-xl overflow-hidden">
+                  <div className="flex items-center">
+                    <button
+                      onClick={() => toggleExpand(ex.id)}
+                      className="flex items-center gap-2 p-4 text-left flex-1"
                     >
-                      <span className="text-surface-500 text-xs font-mono w-6">{set.order + 1}</span>
+                      <DragHandle />
+                      <span className="text-surface-500 text-sm font-mono w-6">{ex.order + 1}</span>
+                      <span className="flex-1 text-surface-50 font-medium">{ex.name}</span>
+                      <span className="text-surface-400 text-xs">
+                        {exSets.length} set{exSets.length !== 1 ? 's' : ''}
+                      </span>
+                      <span className="text-surface-500 text-sm">
+                        {expanded.has(ex.id) ? '\u25B2' : '\u25BC'}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => removeExercise(ex.id)}
+                      className="px-3 py-1 text-red-400 hover:text-red-300 transition-colors text-xs mr-2"
+                      title="Remove exercise"
+                    >
+                      DEL
+                    </button>
+                  </div>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => updateSet(set.id, { reps: clamp(Number(set.reps) - 1, 0, 9999) })}
-                          className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={set.reps}
-                          onChange={e => updateSet(set.id, { reps: Math.max(0, parseFloat(e.target.value) || 0) })}
-                          className="w-14 p-1 rounded bg-surface-700 text-surface-50 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        />
-                        <button
-                          onClick={() => updateSet(set.id, { reps: clamp(Number(set.reps) + 1, 0, 9999) })}
-                          className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
+                  {expanded.has(ex.id) && (
+                    <div className="px-4 pb-4 flex flex-col gap-2">
+                      <SortableGroup items={exSets} onReorder={(oldIdx, newIdx) => handleReorderSet(ex.id, oldIdx, newIdx)}>
+                        {exSets.map(set => (
+                          <SortableItem key={set.id} id={set.id}>
+                            <div className="flex items-center gap-1.5 bg-surface-700/50 rounded-lg p-2">
+                              <DragHandle className="text-xs" />
+                              <span className="text-surface-500 text-xs font-mono w-6">{set.order + 1}</span>
 
-                      <span className="text-surface-500 text-xs">@</span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => updateSet(set.id, { reps: clamp(Number(set.reps) - 1, 0, 9999) })}
+                                  className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
+                                >
+                                  -
+                                </button>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min="0"
+                                  value={set.reps}
+                                  onChange={e => updateSet(set.id, { reps: Math.max(0, parseFloat(e.target.value) || 0) })}
+                                  className="w-14 p-1 rounded bg-surface-700 text-surface-50 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                />
+                                <button
+                                  onClick={() => updateSet(set.id, { reps: clamp(Number(set.reps) + 1, 0, 9999) })}
+                                  className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
+                                >
+                                  +
+                                </button>
+                              </div>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => updateSet(set.id, { weight: clamp(Number(set.weight) - 5, 0, 99999) })}
-                          className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={set.weight}
-                          onChange={e => updateSet(set.id, { weight: Math.max(0, parseFloat(e.target.value) || 0) })}
-                          className="w-16 p-1 rounded bg-surface-700 text-surface-50 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        />
-                        <button
-                          onClick={() => updateSet(set.id, { weight: clamp(Number(set.weight) + 5, 0, 99999) })}
-                          className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
+                              <span className="text-surface-500 text-xs">@</span>
 
-                      <span className="text-surface-500 text-xs">{set.weightUnit}</span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => updateSet(set.id, { weight: clamp(Number(set.weight) - 5, 0, 99999) })}
+                                  className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
+                                >
+                                  -
+                                </button>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min="0"
+                                  value={set.weight}
+                                  onChange={e => updateSet(set.id, { weight: Math.max(0, parseFloat(e.target.value) || 0) })}
+                                  className="w-16 p-1 rounded bg-surface-700 text-surface-50 text-sm font-mono text-center focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                />
+                                <button
+                                  onClick={() => updateSet(set.id, { weight: clamp(Number(set.weight) + 5, 0, 99999) })}
+                                  className="w-7 h-7 rounded bg-surface-700 text-surface-300 font-bold active:bg-surface-600 transition-colors"
+                                >
+                                  +
+                                </button>
+                              </div>
 
-                      <div className="flex-1" />
+                              <span className="text-surface-500 text-xs">{set.weightUnit}</span>
 
-                      <label className="flex items-center gap-1 text-xs text-surface-400 cursor-pointer" title="Include in CSV export">
-                        <input
-                          type="checkbox"
-                          checked={set.logged}
-                          onChange={e => updateSet(set.id, { logged: e.target.checked })}
-                          className="rounded bg-surface-700 border-surface-600"
-                        />
-                        Log
-                      </label>
+                              <div className="flex-1" />
+
+                              <label className="flex items-center gap-1 text-xs text-surface-400 cursor-pointer" title="Include in CSV export">
+                                <input
+                                  type="checkbox"
+                                  checked={set.logged}
+                                  onChange={e => updateSet(set.id, { logged: e.target.checked })}
+                                  className="rounded bg-surface-700 border-surface-600"
+                                />
+                                Log
+                              </label>
+
+                              <button
+                                onClick={() => addSetToExercise(ex.id, set)}
+                                className="p-1 text-surface-400 hover:text-surface-200 transition-colors text-xs"
+                                title="Duplicate set"
+                              >
+                                DUP
+                              </button>
+                              <button
+                                onClick={() => removeSetFromExercise(set.id)}
+                                className="p-1 text-red-400 hover:text-red-300 transition-colors text-xs"
+                                title="Remove set"
+                              >
+                                DEL
+                              </button>
+                            </div>
+                          </SortableItem>
+                        ))}
+                      </SortableGroup>
 
                       <button
-                        onClick={() => addSetToExercise(ex.id, set)}
-                        className="p-1 text-surface-400 hover:text-surface-200 transition-colors text-xs"
-                        title="Duplicate set"
+                        onClick={() => addSetToExercise(ex.id)}
+                        className="w-full py-2 rounded-lg bg-surface-700/50 text-surface-400 text-sm active:bg-surface-700 transition-colors"
                       >
-                        DUP
-                      </button>
-                      <button
-                        onClick={() => removeSetFromExercise(set.id)}
-                        className="p-1 text-red-400 hover:text-red-300 transition-colors text-xs"
-                        title="Remove set"
-                      >
-                        DEL
+                        + Add set
                       </button>
                     </div>
-                  ))}
-
-                  <button
-                    onClick={() => addSetToExercise(ex.id)}
-                    className="w-full py-2 rounded-lg bg-surface-700/50 text-surface-400 text-sm active:bg-surface-700 transition-colors"
-                  >
-                    + Add set
-                  </button>
+                  )}
                 </div>
-              )}
-            </div>
-          )
-        })}
+              </SortableItem>
+            )
+          })}
+        </SortableGroup>
       </div>
 
       <div className="flex flex-col gap-2 mt-4">
