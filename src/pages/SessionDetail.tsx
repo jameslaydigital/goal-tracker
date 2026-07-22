@@ -28,6 +28,23 @@ export default function SessionDetail() {
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
+  const handleReorderSet = useCallback(async (exerciseId: string, oldIndex: number, newIndex: number) => {
+    if (!data) return
+    const exSets = data.sets
+      .filter(s => s.exerciseId === exerciseId)
+      .sort((a, b) => a.order - b.order)
+    const next = [...exSets]
+    const [moved] = next.splice(oldIndex, 1)
+    next.splice(newIndex, 0, moved)
+    await db.transaction('rw', db.sessionSets, async () => {
+      for (const [i, s] of next.entries()) {
+        if (s.order !== i) {
+          await db.sessionSets.update(s.id, { order: i })
+        }
+      }
+    })
+  }, [data])
+
   if (data === undefined) {
     return (
       <div className="min-h-dvh bg-surface-950 flex items-center justify-center text-surface-400">
@@ -171,23 +188,6 @@ export default function SessionDetail() {
       }
     })
   }
-
-  const handleReorderSet = useCallback(async (exerciseId: string, oldIndex: number, newIndex: number) => {
-    if (!data) return
-    const exSets = data.sets
-      .filter(s => s.exerciseId === exerciseId)
-      .sort((a, b) => a.order - b.order)
-    const next = [...exSets]
-    const [moved] = next.splice(oldIndex, 1)
-    next.splice(newIndex, 0, moved)
-    await db.transaction('rw', db.sessionSets, async () => {
-      for (const [i, s] of next.entries()) {
-        if (s.order !== i) {
-          await db.sessionSets.update(s.id, { order: i })
-        }
-      }
-    })
-  }, [data])
 
   async function deleteSession() {
     if (!sessionId) return
