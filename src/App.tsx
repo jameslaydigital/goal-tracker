@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import PlaylistOverview from './pages/PlaylistOverview'
+import PlaylistDetail from './pages/PlaylistDetail'
 import PlaylistEdit from './pages/PlaylistEdit'
 import SessionView from './pages/SessionView'
 import WorkoutMode from './pages/WorkoutMode'
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/playlists/new" element={<PlaylistEdit />} />
         <Route path="/playlists/:id/edit" element={<PlaylistEdit />} />
         <Route path="/playlists/:id/session" element={<SessionView />} />
+        <Route path="/playlists/:id" element={<PlaylistDetail />} />
         <Route path="/workout/:sessionId" element={<WorkoutMode />} />
         <Route path="/sessions" element={<SessionHistory />} />
         <Route path="/sessions/:id" element={<SessionDetail />} />

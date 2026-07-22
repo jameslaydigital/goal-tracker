@@ -79,7 +79,7 @@ export default function PlaylistOverview() {
               key={playlist.id}
               className="flex items-center gap-3 bg-surface-800 rounded-xl p-4"
             >
-              <Link to={`/playlists/${playlist.id}/session`} className="flex-1">
+              <Link to={`/playlists/${playlist.id}`} className="flex-1">
                 <h2 className="text-surface-50 font-semibold">{playlist.name}</h2>
                 <p className="text-surface-400 text-xs">
                   {playlist.exercises.length} exercise{playlist.exercises.length !== 1 ? 's' : ''}
