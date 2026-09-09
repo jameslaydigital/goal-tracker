@@ -1,6 +1,6 @@
 // Logical table names mirrored by the client (src/db.ts). Rows from any of
 // these tables are replicated verbatim (JSON body) into a per-user sqlite DB.
-export const DATA_TABLES = ['playlists', 'sessions', 'sessionExercises', 'sessionSets'] as const
+export const DATA_TABLES = ['playlists', 'programs', 'sessions', 'sessionExercises', 'sessionSets'] as const
 
 export type DataTable = (typeof DATA_TABLES)[number]
 

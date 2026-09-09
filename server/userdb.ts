@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
 import { config } from './config.ts'
 import { isDataTable, isRowId } from './tables.ts'
+import { buildStarterPrograms } from './seed.ts'
 
 // One sqlite file per user, holding every replicated row across all logical
 // tables. Rows are opaque JSON bodies; the (tab, id) pair is the key. Each
@@ -134,6 +135,46 @@ export function applyMutations(userId: string, rawMutations: unknown): { applied
 export interface PullResult {
   rows: SyncRow[]
   curRev: number
+}
+
+// Inserts the starter programs exactly once per account. If the account has
+// ever had programs (marker set or rows present) it never seeds again, so a
+// user who deletes all their programs won't get them resurrected. Runs in its
+// own transaction so two devices seeding concurrently can't double-insert.
+export function seedStarterPrograms(userId: string): boolean {
+  const d = openUserDb(userId)
+  const getMetaRow = d.prepare('SELECT v FROM meta WHERE k = ?')
+  const upsertMeta = d.prepare('INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v')
+  const countPrograms = d.prepare("SELECT COUNT(*) AS c FROM kv WHERE tab = 'programs'")
+  const upsert = d.prepare(
+    'INSERT INTO kv (tab, id, body, ts, deleted, rev) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(tab, id) DO UPDATE SET body = excluded.body, ts = excluded.ts, deleted = excluded.deleted, rev = excluded.rev',
+  )
+  const MARKER = 'starter_seeded'
+
+  d.exec('BEGIN IMMEDIATE')
+  try {
+    if (getMetaRow.get(MARKER)) {
+      d.exec('COMMIT')
+      return false
+    }
+    if (Number(countPrograms.get()?.c ?? 0) > 0) {
+      upsertMeta.run(MARKER, '1')
+      d.exec('COMMIT')
+      return false
+    }
+    let cur = Number(getMetaRow.get('cur_rev')?.v ?? 0)
+    for (const p of buildStarterPrograms()) {
+      cur += 1
+      upsert.run('programs', p.id, p.body, p.ts, 0, cur)
+    }
+    upsertMeta.run(MARKER, '1')
+    upsertMeta.run('cur_rev', String(cur))
+    d.exec('COMMIT')
+    return true
+  } catch (err) {
+    d.exec('ROLLBACK')
+    throw err
+  }
 }
 
 export function pullChanges(userId: string, since: number, limit: number): PullResult {

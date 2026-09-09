@@ -1,6 +1,6 @@
 import { Router, type Response } from 'express'
 import { authUser, requireAuth } from './auth.ts'
-import { applyMutations, pullChanges } from './userdb.ts'
+import { applyMutations, pullChanges, seedStarterPrograms } from './userdb.ts'
 import { isFiniteInt } from './tables.ts'
 
 const PULL_LIMIT = 500
@@ -29,4 +29,10 @@ syncRouter.post('/pull', requireAuth, (req, res) => {
   }
   const limit = Math.min(Math.max(limitRaw as number, 1), PULL_LIMIT_MAX)
   res.json(pullChanges(authUser(res).id, since, limit))
+})
+
+// Seeds starter programs once per account (no-op if already seeded or if the
+// account already has programs). Called by a client shortly after sign-in.
+syncRouter.post('/seed', requireAuth, (_req, res) => {
+  res.json({ seeded: seedStarterPrograms(authUser(res).id) })
 })
