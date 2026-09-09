@@ -1,12 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 import { exportSessionsToCSV } from '../utils'
+import { useAuth } from '../auth'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user, syncing, signOut } = useAuth()
+  const name = user?.email.split('@')[0] ?? 'there'
+  const displayName = name.charAt(0).toUpperCase() + name.slice(1)
 
   return (
     <div className="min-h-dvh bg-surface-950 flex flex-col items-center justify-center gap-6 p-6">
-      <h1 className="text-3xl font-bold text-surface-50">Welcome, James!</h1>
+      <h1 className="text-3xl font-bold text-surface-50">Welcome, {displayName}!</h1>
       <p className="text-surface-400 text-sm">What would you like to do?</p>
 
       <div className="flex flex-col gap-4 w-full max-w-sm">
@@ -42,6 +46,13 @@ export default function Dashboard() {
         >
           Export Data (CSV)
         </button>
+
+        <div className="flex items-center justify-between text-surface-500 text-xs">
+          <span>{syncing ? 'Syncing…' : 'Saved to cloud'}</span>
+          <button onClick={() => void signOut()} className="underline">
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
   )

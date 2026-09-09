@@ -7,9 +7,22 @@ import SessionView from './pages/SessionView'
 import WorkoutMode from './pages/WorkoutMode'
 import SessionHistory from './pages/SessionHistory'
 import SessionDetail from './pages/SessionDetail'
+import AuthScreen from './components/AuthScreen'
+import { useAuth } from './auth'
 
 export default function App() {
+  const { user, status } = useAuth()
   const version = document.querySelector('meta[name="build-version"]')?.getAttribute('content')
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-dvh bg-surface-950 flex items-center justify-center">
+        <p className="text-surface-500">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!user) return <AuthScreen />
 
   return (
     <>

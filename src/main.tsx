@@ -4,12 +4,15 @@ import { HashRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
 import { UpdatePrompt } from './UpdatePrompt'
+import { AuthProvider } from './auth'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
-      <App />
-      <UpdatePrompt />
+      <AuthProvider>
+        <App />
+        <UpdatePrompt />
+      </AuthProvider>
     </HashRouter>
   </StrictMode>,
 )
