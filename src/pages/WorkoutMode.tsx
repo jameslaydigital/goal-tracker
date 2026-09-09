@@ -9,6 +9,20 @@ function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
 }
 
+// Compact the player when the app has little vertical room (e.g. Android
+// split-screen with YouTube on top) so the complete button stays visible.
+const COMPACT_MAX_HEIGHT = 620
+
+function useShortViewport(threshold = COMPACT_MAX_HEIGHT): boolean {
+  const [short, setShort] = useState(() => window.innerHeight <= threshold)
+  useEffect(() => {
+    const onResize = () => setShort(window.innerHeight <= threshold)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [threshold])
+  return short
+}
+
 type SessionData = {
   session: Session
   exercises: SessionExercise[]
@@ -41,6 +55,7 @@ export default function WorkoutMode() {
   const [animatingSetId, setAnimatingSetId] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
+  const short = useShortViewport()
   const pendingRef = useRef<{ exIdx: number; setIdx: number } | null>(null)
 
   useEffect(() => {
@@ -330,28 +345,30 @@ export default function WorkoutMode() {
   return (
     <div className="fixed inset-0 bg-surface-900 flex flex-col z-50">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className={`flex items-center justify-between ${short ? 'px-3 py-2' : 'px-6 py-4'}`}>
         <button
           onClick={pauseSession}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-800 text-surface-300 text-sm font-medium active:bg-surface-700 transition-colors"
+          className={`flex items-center gap-1.5 rounded-lg bg-surface-800 text-surface-300 font-medium active:bg-surface-700 transition-colors ${short ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'}`}
         >
           <span>&#9646;&#9646;</span>
           <span>Pause</span>
         </button>
 
-        <div className="flex items-center gap-2">
-          <span className="text-surface-400 text-sm">{completedSets}/{totalSets}</span>
-          <div className="w-24 h-2 bg-surface-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-500 rounded-full transition-all duration-500"
-              style={{ width: `${getProgressPercent()}%` }}
-            />
+        {!short && (
+          <div className="flex items-center gap-2">
+            <span className="text-surface-400 text-sm">{completedSets}/{totalSets}</span>
+            <div className="w-24 h-2 bg-surface-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                style={{ width: `${getProgressPercent()}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <button
           onClick={() => setShowMenu(!showMenu)}
-          className="px-3 py-2 rounded-lg bg-surface-800 text-surface-300 text-sm active:bg-surface-700 transition-colors"
+          className={`rounded-lg bg-surface-800 text-surface-300 active:bg-surface-700 transition-colors ${short ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
         >
           Menu
         </button>
@@ -396,15 +413,15 @@ export default function WorkoutMode() {
       )}
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 gap-8">
+      <div className={`flex-1 flex flex-col items-center justify-center overflow-y-auto ${short ? 'px-4 gap-2' : 'px-8 gap-8'}`}>
         {/* Exercise name */}
         <div className="text-center">
-          <p className="text-surface-400 text-sm mb-1">
+          <p className={`text-surface-400 mb-1 ${short ? 'text-[10px]' : 'text-sm'}`}>
             {currentExercise
               ? `Exercise ${currentExercise.order + 1} of ${exercises.length}`
               : ''}
           </p>
-          <h2 className="text-4xl font-bold text-surface-50">
+          <h2 className={`font-bold text-surface-50 ${short ? 'text-2xl' : 'text-4xl'}`}>
             {currentExercise?.name ?? 'Done!'}
           </h2>
         </div>
@@ -412,17 +429,17 @@ export default function WorkoutMode() {
         {currentSet && currentExercise && (
           <>
             {/* Set indicator */}
-            <p className="text-surface-400 text-lg">
+            <p className={`text-surface-400 ${short ? 'text-xs' : 'text-lg'}`}>
               Set {currentSet.order + 1} of {currentExerciseSets.length}
             </p>
 
             {/* Reps stepper */}
-            <div className="flex flex-col items-center gap-2 w-full max-w-xs">
-              <label className="text-surface-500 text-sm uppercase tracking-wider">Reps</label>
-              <div className="flex items-center gap-4 w-full justify-center">
+            <div className="flex flex-col items-center gap-1 w-full max-w-xs">
+              <label className={`text-surface-500 uppercase tracking-wider ${short ? 'text-[10px]' : 'text-sm'}`}>Reps</label>
+              <div className="flex items-center gap-3 w-full justify-center">
                 <button
                   onClick={() => updateCurrentSet({ reps: clamp(Number(currentSet.reps) - 1, 0, 9999) })}
-                  className="w-16 h-16 rounded-2xl bg-surface-800 text-surface-50 text-3xl font-bold active:bg-surface-700 transition-colors flex items-center justify-center"
+                  className={`rounded-2xl bg-surface-800 text-surface-50 font-bold active:bg-surface-700 transition-colors flex items-center justify-center ${short ? 'w-12 h-12 text-2xl' : 'w-16 h-16 text-3xl'}`}
                 >
                   -
                 </button>
@@ -432,11 +449,11 @@ export default function WorkoutMode() {
                   min="0"
                   value={currentSet.reps}
                   onChange={e => updateCurrentSet({ reps: Math.max(0, parseFloat(e.target.value) || 0) })}
-                  className="w-24 bg-transparent text-6xl font-bold text-surface-50 font-mono text-center tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className={`bg-transparent font-bold text-surface-50 font-mono text-center tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${short ? 'w-16 text-4xl' : 'w-24 text-6xl'}`}
                 />
                 <button
                   onClick={() => updateCurrentSet({ reps: clamp(Number(currentSet.reps) + 1, 0, 9999) })}
-                  className="w-16 h-16 rounded-2xl bg-surface-800 text-surface-50 text-3xl font-bold active:bg-surface-700 transition-colors flex items-center justify-center"
+                  className={`rounded-2xl bg-surface-800 text-surface-50 font-bold active:bg-surface-700 transition-colors flex items-center justify-center ${short ? 'w-12 h-12 text-2xl' : 'w-16 h-16 text-3xl'}`}
                 >
                   +
                 </button>
@@ -444,12 +461,12 @@ export default function WorkoutMode() {
             </div>
 
             {/* Weight stepper */}
-            <div className="flex flex-col items-center gap-2 w-full max-w-xs">
-              <label className="text-surface-500 text-sm uppercase tracking-wider">Weight ({currentSet.weightUnit})</label>
-              <div className="flex items-center gap-4 w-full justify-center">
+            <div className="flex flex-col items-center gap-1 w-full max-w-xs">
+              <label className={`text-surface-500 uppercase tracking-wider ${short ? 'text-[10px]' : 'text-sm'}`}>Weight ({currentSet.weightUnit})</label>
+              <div className="flex items-center gap-3 w-full justify-center">
                 <button
                   onClick={() => updateCurrentSet({ weight: clamp(Number(currentSet.weight) - 5, 0, 99999) })}
-                  className="w-16 h-16 rounded-2xl bg-surface-800 text-surface-50 text-3xl font-bold active:bg-surface-700 transition-colors flex items-center justify-center"
+                  className={`rounded-2xl bg-surface-800 text-surface-50 font-bold active:bg-surface-700 transition-colors flex items-center justify-center ${short ? 'w-12 h-12 text-2xl' : 'w-16 h-16 text-3xl'}`}
                 >
                   -
                 </button>
@@ -459,11 +476,11 @@ export default function WorkoutMode() {
                   min="0"
                   value={currentSet.weight}
                   onChange={e => updateCurrentSet({ weight: Math.max(0, parseFloat(e.target.value) || 0) })}
-                  className="w-24 bg-transparent text-6xl font-bold text-surface-50 font-mono text-center tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className={`bg-transparent font-bold text-surface-50 font-mono text-center tabular-nums focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${short ? 'w-16 text-4xl' : 'w-24 text-6xl'}`}
                 />
                 <button
                   onClick={() => updateCurrentSet({ weight: clamp(Number(currentSet.weight) + 5, 0, 99999) })}
-                  className="w-16 h-16 rounded-2xl bg-surface-800 text-surface-50 text-3xl font-bold active:bg-surface-700 transition-colors flex items-center justify-center"
+                  className={`rounded-2xl bg-surface-800 text-surface-50 font-bold active:bg-surface-700 transition-colors flex items-center justify-center ${short ? 'w-12 h-12 text-2xl' : 'w-16 h-16 text-3xl'}`}
                 >
                   +
                 </button>
@@ -473,7 +490,7 @@ export default function WorkoutMode() {
             {/* Complete button */}
             <button
               onClick={completeSet}
-              className="w-24 h-24 rounded-full bg-green-600 text-white text-4xl active:bg-green-500 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-lg shadow-green-600/30"
+              className={`rounded-full bg-green-600 text-white active:bg-green-500 transition-all duration-150 active:scale-95 flex items-center justify-center shadow-lg shadow-green-600/30 ${short ? 'w-16 h-16 text-3xl' : 'w-24 h-24 text-4xl'}`}
             >
               <span className={`${animatingSetId === currentSet.id ? 'animate-bounce' : ''}`}>
                 {currentSet.logged ? 'Save' : '\u2713'}
@@ -483,25 +500,25 @@ export default function WorkoutMode() {
         )}
 
         {/* Navigation buttons */}
-        <div className="flex gap-4 mt-2">
+        <div className={`flex ${short ? 'mt-0.5 gap-2' : 'mt-2 gap-4'}`}>
           <button
             onClick={goBack}
             disabled={session.playheadExerciseIndex === 0 && session.playheadSetIndex === 0}
-            className="px-5 py-2 rounded-xl bg-surface-800 text-surface-300 text-sm font-medium disabled:opacity-30 active:bg-surface-700 transition-colors"
+            className={`rounded-xl bg-surface-800 text-surface-300 font-medium disabled:opacity-30 active:bg-surface-700 transition-colors ${short ? 'px-3 py-1.5 text-xs' : 'px-5 py-2 text-sm'}`}
           >
             &larr; Back
           </button>
           <button
             onClick={skipSet}
             disabled={!currentSet}
-            className="px-5 py-2 rounded-xl bg-surface-800 text-surface-300 text-sm font-medium disabled:opacity-30 active:bg-surface-700 transition-colors"
+            className={`rounded-xl bg-surface-800 text-surface-300 font-medium disabled:opacity-30 active:bg-surface-700 transition-colors ${short ? 'px-3 py-1.5 text-xs' : 'px-5 py-2 text-sm'}`}
           >
             Skip Set
           </button>
           <button
             onClick={skipExercise}
             disabled={!currentExercise}
-            className="px-5 py-2 rounded-xl bg-surface-800 text-surface-300 text-sm font-medium disabled:opacity-30 active:bg-surface-700 transition-colors"
+            className={`rounded-xl bg-surface-800 text-surface-300 font-medium disabled:opacity-30 active:bg-surface-700 transition-colors ${short ? 'px-3 py-1.5 text-xs' : 'px-5 py-2 text-sm'}`}
           >
             Skip Exercise
           </button>
