@@ -14,11 +14,19 @@ function clamp(v: number, min: number, max: number): number {
 const COMPACT_MAX_HEIGHT = 620
 
 function useShortViewport(threshold = COMPACT_MAX_HEIGHT): boolean {
-  const [short, setShort] = useState(() => window.innerHeight <= threshold)
+  const [short, setShort] = useState(false)
   useEffect(() => {
-    const onResize = () => setShort(window.innerHeight <= threshold)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    // max-height tracks the layout viewport, which is what split-screen
+    // resizes. Belt-and-suspenders: a raw resize listener too.
+    const mq = window.matchMedia(`(max-height: ${threshold}px)`)
+    const update = () => setShort(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    window.addEventListener('resize', update)
+    return () => {
+      mq.removeEventListener('change', update)
+      window.removeEventListener('resize', update)
+    }
   }, [threshold])
   return short
 }
