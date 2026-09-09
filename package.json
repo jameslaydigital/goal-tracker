@@ -12,6 +12,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "sync:test": "node scripts/sync-test.ts",
+    "cli": "node cli/run.ts",
     "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {

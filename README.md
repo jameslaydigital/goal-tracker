@@ -107,6 +107,22 @@ npm run sync:test
 # requires the API server running on :8080 first
 ```
 
+### CLI (editing workouts)
+
+`cli/run.ts` edits an account's **active workouts** through the sync API — rename/add/remove workouts, add/remove exercises, and scale weights:
+
+```bash
+export GOAL_TRACKER_URL=https://goal-tracker.progressive-apps.com
+export GOAL_TRACKER_EMAIL=user@example.com
+export GOAL_TRACKER_PASSWORD=...
+npm run cli -- list
+npm run cli -- add "Cardio"                     # then: exercise add "Cardio" "Treadmill" -s 3 -r 15
+npm run cli -- bump --pct 10 --workout "Push Day"
+npm run cli -- rename "Push Day" "Push A"
+```
+
+See `.opencode/skills/goal-tracker-cli/SKILL.md` for the full command reference and agent guidance.
+
 ## CSV Export
 
 One row per completed set, exported via the Web Share API (triggers Android share sheet → save to Google Drive, etc.):

@@ -1,6 +1,6 @@
 import { Router, type Response } from 'express'
 import { authUser, requireAuth } from './auth.ts'
-import { applyMutations, pullChanges, seedStarterPrograms } from './userdb.ts'
+import { applyMutations, listTable, pullChanges, seedStarterPrograms } from './userdb.ts'
 import { isFiniteInt } from './tables.ts'
 
 const PULL_LIMIT = 500
@@ -35,4 +35,12 @@ syncRouter.post('/pull', requireAuth, (req, res) => {
 // account already has programs). Called by a client shortly after sign-in.
 syncRouter.post('/seed', requireAuth, (_req, res) => {
   res.json({ seeded: seedStarterPrograms(authUser(res).id) })
+})
+
+// Live rows of one logical table as parsed objects — a light read path for
+// the CLI and tooling (no revision/watermark bookkeeping needed).
+syncRouter.get('/table/:table', requireAuth, (req, res) => {
+  const rows = listTable(authUser(res).id, String(req.params.table ?? ''))
+  if (!rows) return res.status(400).json({ error: 'Unknown table.' })
+  res.json({ rows })
 })

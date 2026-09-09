@@ -137,6 +137,17 @@ export interface PullResult {
   curRev: number
 }
 
+// Returns every live (non-deleted) row of one logical table as parsed objects,
+// newest revision first. Used by the CLI to inspect/edit the active workouts.
+export function listTable(userId: string, table: string): Array<Record<string, unknown>> | null {
+  if (!isDataTable(table)) return null
+  const d = openUserDb(userId)
+  const rows = d
+    .prepare('SELECT body FROM kv WHERE tab = ? AND deleted = 0 ORDER BY rev DESC')
+    .all(table) as unknown as Array<{ body: string }>
+  return rows.map((r) => JSON.parse(r.body) as Record<string, unknown>)
+}
+
 // Inserts the starter programs exactly once per account. If the account has
 // ever had programs (marker set or rows present) it never seeds again, so a
 // user who deletes all their programs won't get them resurrected. Runs in its

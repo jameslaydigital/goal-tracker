@@ -11,6 +11,7 @@ npm run typecheck    # tsc -b only
 npm run lint         # oxlint (no config file — defaults)
 npm run preview      # preview production build
 npm run sync:test    # end-to-end sync smoke test (needs API running on :8080)
+npm run cli          # edit an account's active workouts via the sync API (see .opencode/skills/goal-tracker-cli)
 npm run deploy       # deploy to syncart:/opt/goal-tracker (see scripts/deploy.mjs)
 ```
 
@@ -52,6 +53,8 @@ replicates all five data tables to the server (per-user SQLite, LWW by `_ts`).
 | `server/globaldb.ts` | Global users/sessions DB (`data/auth.sqlite`) |
 | `server/userdb.ts` | Per-user SQLite replication store + LWW logic |
 | `server/config.ts` | Env config (`PORT`, `DATA_DIR`, `COOKIE_SECURE`, …) |
+| `cli/run.ts` | Node CLI to edit an account's active workouts (`npm run cli`, see the goal-tracker-cli skill) |
+| `.opencode/skills/goal-tracker-cli/` | Agent skill wrapping the CLI |
 | `scripts/sync-test.ts` | E2E sync smoke test |
 
 ## Sync semantics (read before touching `src/db.ts` or `server/userdb.ts`)
