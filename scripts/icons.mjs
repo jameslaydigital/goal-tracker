@@ -1,4 +1,4 @@
-// Rasterize public/favicon.svg into the PNG icons used for installs and the
+// Rasterize public/icon.svg into the PNG icons used for installs and the
 // home screen. Run: node scripts/icons.mjs
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const svg = readFileSync(join(ROOT, 'public', 'favicon.svg'))
+const svg = readFileSync(join(ROOT, 'public', 'icon.svg'))
 
 const sizes = [
   { file: 'icon-192.png', size: 192 },
