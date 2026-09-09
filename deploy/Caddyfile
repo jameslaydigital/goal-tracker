@@ -1,0 +1,19 @@
+# Managed by the goal-tracker deploy script (scripts/deploy.mjs).
+#
+# Routing on this box (HTTP origin — HTTPS is terminated by Cloudflare):
+#   goal-tracker.progressive-apps.com  -> goal-tracker app  (127.0.0.1:8080)
+#   anything else (incl. syncart app)  -> syncart          (127.0.0.1:8787)
+#
+# The site address carries an explicit :80 so Caddy does NOT enable HTTPS/TLS
+# for it — Cloudflare already terminates TLS in front of this origin. Caddy
+# selects the most specific hostname, so the site block below wins over the
+# :80 catch-all for goal-tracker.progressive-apps.com, while the catch-all
+# keeps every other subdomain pointed at syncart.
+
+goal-tracker.progressive-apps.com:80 {
+	reverse_proxy 127.0.0.1:8080
+}
+
+:80 {
+	reverse_proxy 127.0.0.1:8787
+}

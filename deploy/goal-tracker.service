@@ -1,0 +1,22 @@
+[Unit]
+Description=Workout Goal Tracker (frontend + API)
+After=network.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/goal-tracker
+EnvironmentFile=/etc/goal-tracker.env
+ExecStart=/usr/local/bin/node server/index.ts
+Restart=always
+RestartSec=3
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/goal-tracker/data
+
+[Install]
+WantedBy=multi-user.target
