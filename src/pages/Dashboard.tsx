@@ -15,6 +15,13 @@ export default function Dashboard() {
 
       <div className="flex flex-col gap-4 w-full max-w-sm">
         <button
+          onClick={() => navigate('/programs')}
+          className="w-full py-4 px-6 rounded-xl bg-surface-800 text-surface-50 text-lg font-semibold active:bg-surface-700 transition-colors"
+        >
+          Programs
+        </button>
+
+        <button
           onClick={() => navigate('/playlists')}
           className="w-full py-4 px-6 rounded-xl bg-surface-800 text-surface-50 text-lg font-semibold active:bg-surface-700 transition-colors"
         >

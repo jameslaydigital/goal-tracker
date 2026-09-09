@@ -1,7 +1,7 @@
 import Dexie, { type EntityTable, type Table, type Transaction } from 'dexie'
-import type { Playlist, Session, SessionExercise, ExerciseSet } from './types'
+import type { Playlist, Program, Session, SessionExercise, ExerciseSet } from './types'
 
-export const DATA_TABLES = ['playlists', 'sessions', 'sessionExercises', 'sessionSets'] as const
+export const DATA_TABLES = ['playlists', 'programs', 'sessions', 'sessionExercises', 'sessionSets'] as const
 export type DataTable = (typeof DATA_TABLES)[number]
 
 export interface SyncMetaRow {
@@ -21,6 +21,7 @@ export type SyncOutboxInput = Omit<SyncOutboxEntry, 'seq'>
 
 export const db = new Dexie('GoalTracker') as Dexie & {
   playlists: EntityTable<Playlist, 'id'>
+  programs: EntityTable<Program, 'id'>
   sessions: EntityTable<Session, 'id'>
   sessionExercises: EntityTable<SessionExercise, 'id'>
   sessionSets: EntityTable<ExerciseSet, 'id'>
@@ -37,6 +38,16 @@ db.version(1).stores({
 
 db.version(2).stores({
   playlists: 'id',
+  sessions: 'id',
+  sessionExercises: 'id, sessionId',
+  sessionSets: 'id, exerciseId, sessionId',
+  __syncOutbox: '++seq, tab',
+  __syncMeta: 'key',
+})
+
+db.version(3).stores({
+  playlists: 'id',
+  programs: 'id',
   sessions: 'id',
   sessionExercises: 'id, sessionId',
   sessionSets: 'id, exerciseId, sessionId',

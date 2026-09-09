@@ -20,6 +20,13 @@ import {
   wipeLocalData,
 } from '../src/db.ts'
 import { pushOnce, pullOnce } from '../src/sync.ts'
+import {
+  applyProgram,
+  deleteProgram,
+  overrideProgramWithCurrent,
+  renameProgram,
+  saveCurrentWorkoutsAsProgram,
+} from '../src/programs.ts'
 import type { Playlist } from '../src/types.ts'
 
 // Minimal localStorage shim (only auth.tsx needs it; Node lacks it).
@@ -203,6 +210,44 @@ async function run(): Promise<void> {
   rows = await serverPull()
   const migrated = rows.some((r) => !r.deleted && r.body?.includes('Legacy workout'))
   check(migrated, 'legacy row reached the server')
+
+  console.log('[9] programs: save / apply (dated backups) / override / rename / delete')
+  const workoutsBefore = (await db.playlists.toArray()).length
+  const saved = await saveCurrentWorkoutsAsProgram('My Test Program')
+  check(saved.workouts.length === workoutsBefore, 'saved program snapshots current workouts')
+  const backup1 = await applyProgram(saved)
+  check(backup1 !== null && (await db.playlists.toArray()).length === saved.workouts.length, 'apply created a dated backup and swapped workouts')
+  const backup2 = await applyProgram(saved)
+  check(backup1 !== null && backup2 !== null && backup1 !== backup2, 'second apply on the same day gets a unique name')
+  const programNames = (await db.programs.toArray()).map((p) => p.name)
+  check(backup1 !== null && programNames.includes(backup1), `backup "${backup1}" listed`)
+  check(backup2 !== null && programNames.includes(backup2), `backup "${backup2}" listed`)
+  await overrideProgramWithCurrent(saved)
+  await renameProgram(saved.id, 'Renamed Test Program')
+  await pushOnce()
+  rows = await serverPull()
+  check(
+    rows.some((r) => r.table === 'programs' && !r.deleted && r.body?.includes('Renamed Test Program')),
+    'renamed/overridden program reached the server',
+  )
+  await deleteProgram(saved.id)
+  await pushOnce()
+  rows = await serverPull()
+  const progTomb = rows.find((r) => r.table === 'programs' && r.id === saved.id)
+  check(progTomb?.deleted === true, 'deleted program tombstoned on the server')
+
+  console.log('[10] starter seeding happens once per account')
+  await signupUnique() // fresh account
+  await wipeLocalData()
+  await db.open()
+  await deleteMeta('baselineDone')
+  await baselineLocalData()
+  const firstSeed = await api.seed()
+  check(firstSeed.seeded === true, 'first seed call seeds the account')
+  await pullOnce()
+  check((await db.programs.count()) === 3, '3 starter programs pulled after seeding')
+  const secondSeed = await api.seed()
+  check(secondSeed.seeded === false, 'second seed call is a no-op')
 
   // reset owner marker
   localStorage.removeItem('goal-tracker.account')

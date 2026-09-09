@@ -20,6 +20,16 @@ export interface Playlist {
   exercises: Exercise[];
 }
 
+// A saved set of workout templates. `workouts` are deep copies of playlists —
+// editing the active workouts never mutates a saved program, and applying a
+// program materializes fresh copies, never the program's own rows.
+export interface Program {
+  id: string;
+  name: string;
+  createdAt: string;
+  workouts: Playlist[];
+}
+
 export interface ExerciseSet {
   id: string;
   exerciseId: string;

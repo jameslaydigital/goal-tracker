@@ -63,4 +63,5 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ since, limit }),
     }),
+  seed: () => request<{ seeded: boolean }>('/api/sync/seed', { method: 'POST' }),
 }

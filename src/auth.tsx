@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { ApiError, api, type AuthUser } from './api'
 import { baselineLocalData, wipeLocalData } from './db'
 import { syncOnce } from './sync'
+import { requestStarterSeeds } from './programs'
 
 const OWNER_KEY = 'goal-tracker.account'
 const USER_KEY = 'goal-tracker.user'
@@ -93,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setSyncing(true)
         await baselineLocalData()
+        await requestStarterSeeds()
         await syncOnce()
       } catch (err) {
         console.warn('[sync]', err)

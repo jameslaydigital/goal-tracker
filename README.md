@@ -17,7 +17,7 @@ Dexie/IndexedDB stays the source of truth for the UI, which keeps the app fully 
 
 - Every write to a data table is stamped with a wall-clock `_ts` and logged to a local outbox (Dexie hooks, so no call sites change).
 - While signed in, the app syncs on load, on reconnect, on focus, and every 30s: it **pushes** outbox entries and **pulls** anything newer than its last-seen revision.
-- The server stores rows from all four tables as opaque JSON in a per-user SQLite file (`data/users/<id>.sqlite`), tagging each write with a monotonic revision.
+- The server stores rows from all five tables as opaque JSON in a per-user SQLite file (`data/users/<id>.sqlite`), tagging each write with a monotonic revision.
 - Conflicts resolve **last-write-wins by `_ts`** — including deletes (tombstones propagate).
 - Deleting your browser history no longer loses data: a fresh device signs in and pulls everything back from the server.
 
@@ -54,6 +54,7 @@ Sessions snapshot playlist exercises on creation — modifying a template never 
 
 | Term | Definition |
 |---|---|
+| **Program** | A saved set of workout templates (a training plan) |
 | **Playlist** | A template / blueprint for a workout session |
 | **Session** | An instance of a playlist, started from the playlist overview |
 | **Exercise** | A named movement within a session (e.g. "bench press") |
@@ -64,11 +65,24 @@ Sessions snapshot playlist exercises on creation — modifying a template never 
 | Route | View |
 |---|---|
 | `/` | Dashboard |
+| `/programs` | Programs (saved workout sets) |
+| `/programs/:id` | Program detail — apply / rename / overwrite / delete |
 | `/playlists` | Playlist overview |
 | `/playlists/new` | Create playlist |
 | `/playlists/:id/edit` | Edit playlist |
 | `/playlists/:id/session` | Session view (+ top "Resume" bar if paused) |
 | `/workout/:sessionId` | Workout mode (fullscreen overlay) |
+
+### Programs
+
+A **program** is a saved set of workout templates. Apply one and your current
+workouts are backed up to a program named after today's date (`2026-09-09`,
+`2026-09-09 (2)`, …) before the program's workouts become active. Programs can
+be renamed, overwritten with your current workouts, or deleted. New accounts
+are seeded once with starter programs (Push/Pull Hypertrophy + Legs, Weight
+Loss, Powerlifting); deleting them doesn't bring them back. Client-side caps
+(256 programs / workouts per program / exercises per workout / sets per
+exercise) guard the bulk operations.
 
 ## Running locally
 
@@ -168,3 +182,14 @@ COOKIE_SECURE=1
 5. CSV export
 6. Logging module (measurements, supplements, body weight)
 7. Reports module (interactive data views)
+
+### Limits & abuse protection
+
+Guardrails so a single account (or an attacker) can't balloon the databases.
+Enforced server-side where it matters, with matching client-side caps so the
+UI never lets you exceed them in the first place.
+
+- **Per-account data caps** (256 each): programs, workouts per program, exercises per workout, sets per exercise.
+- **Session throttle**: at most ~50 new sessions per account per day (rejects beyond that).
+- **Tenant cap**: maximum number of signups the deployment accepts before new-account creation is denied (429/503), so one host isn't surprised by unbounded growth.
+- **Payload/rate safety** (already present in spirit): push batches are capped and idempotent; keep those enforced and add per-IP + per-account request throttling on auth/sync endpoints.

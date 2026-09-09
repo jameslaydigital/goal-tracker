@@ -33,7 +33,7 @@ against a live server using fake IndexedDB.
 
 Single package: a Vite/PWA frontend plus a Node backend in `server/`. The UI
 renders from Dexie/IndexedDB (works offline); while signed in a sync engine
-replicates all four data tables to the server (per-user SQLite, LWW by `_ts`).
+replicates all five data tables to the server (per-user SQLite, LWW by `_ts`).
 
 | File | Role |
 |---|---|
@@ -56,7 +56,7 @@ replicates all four data tables to the server (per-user SQLite, LWW by `_ts`).
 
 ## Sync semantics (read before touching `src/db.ts` or `server/userdb.ts`)
 
-- Every row across the 4 data tables replicates as an opaque JSON body; sync is row-level, not schema-aware.
+- Every row across the 5 data tables replicates as an opaque JSON body; sync is row-level, not schema-aware.
 - Client writes are captured by **Dexie hooks** — never add instrumentation to individual call sites. Hooks:
   - stamp `_ts` on create/update (the `updating` hook must *return* `{ _ts }`, not mutate `modifications`);
   - log to `__syncOutbox` **on transaction `complete`** (implicit single-table write transactions don't scope `__syncOutbox`, so logging from inside the hook would throw).
@@ -79,6 +79,6 @@ Sessions snapshot playlist data at creation time — editing a playlist does not
 
 Only `ExerciseSet` rows where `logged === true` appear in CSV exports.
 
-Database name: `"GoalTracker"` (IndexedDB via Dexie, schema version 2).
+Database name: `"GoalTracker"` (IndexedDB via Dexie, schema version 3).
 
 Server data lives in `DATA_DIR` (default `<repo>/data`, gitignored): `auth.sqlite` for users/sessions plus `users/<userId>.sqlite` for workout data.

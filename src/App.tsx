@@ -7,6 +7,8 @@ import SessionView from './pages/SessionView'
 import WorkoutMode from './pages/WorkoutMode'
 import SessionHistory from './pages/SessionHistory'
 import SessionDetail from './pages/SessionDetail'
+import ProgramsOverview from './pages/ProgramsOverview'
+import ProgramDetail from './pages/ProgramDetail'
 import AuthScreen from './components/AuthScreen'
 import { useAuth } from './auth'
 
@@ -28,6 +30,8 @@ export default function App() {
     <>
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/programs" element={<ProgramsOverview />} />
+        <Route path="/programs/:id" element={<ProgramDetail />} />
         <Route path="/playlists" element={<PlaylistOverview />} />
         <Route path="/playlists/new" element={<PlaylistEdit />} />
         <Route path="/playlists/:id/edit" element={<PlaylistEdit />} />

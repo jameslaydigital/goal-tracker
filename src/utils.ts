@@ -1,4 +1,4 @@
-import { db } from './db'
+import { db } from './db.ts'
 
 export function generateId(): string {
   return crypto.randomUUID()
