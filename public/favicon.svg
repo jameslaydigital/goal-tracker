@@ -1,4 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#1e293b"/>
-  <text x="50" y="68" font-size="55" text-anchor="middle" fill="#60a5fa" font-family="system-ui">&#10003;</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#263449"/>
+      <stop offset="1" stop-color="#0a101d"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1f5f9"/>
+      <stop offset="1" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- soft backlight behind the dumbbell -->
+  <circle cx="256" cy="262" r="168" fill="#60a5fa" opacity="0.07"/>
+
+  <!-- bar -->
+  <rect x="196" y="246" width="120" height="20" rx="10" fill="#e2e8f0"/>
+
+  <!-- collars -->
+  <rect x="188" y="240" width="8" height="32" rx="4" fill="#64748b"/>
+  <rect x="316" y="240" width="8" height="32" rx="4" fill="#64748b"/>
+
+  <!-- plates (far set darker, near set lighter for depth) -->
+  <rect x="118" y="232" width="36" height="48" rx="10" fill="#7b8ba1"/>
+  <rect x="160" y="222" width="34" height="68" rx="12" fill="url(#metal)"/>
+  <rect x="318" y="222" width="34" height="68" rx="12" fill="url(#metal)"/>
+  <rect x="358" y="232" width="36" height="48" rx="10" fill="#7b8ba1"/>
 </svg>
