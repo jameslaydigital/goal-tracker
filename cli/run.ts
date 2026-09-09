@@ -1,10 +1,9 @@
 // goal-tracker CLI — edit the *active workout list* (playlists) of an account
-// through the same sync API the app uses. Auth is email/password via env vars;
-// every edit is pushed with a fresh `_ts` and last-write-wins on the server.
+// through the same sync API the app uses. Auth is email/password; every edit is
+// pushed with a fresh `_ts` and last-write-wins on the server.
 //
-//   GOAL_TRACKER_URL=http://localhost:8080
-//   GOAL_TRACKER_EMAIL=you@example.com
-//   GOAL_TRACKER_PASSWORD=...
+// Credentials come from env vars (GOAL_TRACKER_URL, GOAL_TRACKER_EMAIL,
+// GOAL_TRACKER_PASSWORD) or from ~/.goal-tracker.env (see `npm run cli -- --help`).
 //
 //   npm run cli -- list
 //   npm run cli -- show "Push Day"
@@ -21,6 +20,29 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '')
+
+// Optional dotfile (default ~/.goal-tracker.env) so credentials don't have to
+// be exported per command or pasted into transcripts. Set GOAL_TRACKER_ENV to
+// point elsewhere. Real env vars win over the file.
+function loadEnvFile(): void {
+  const file = process.env.GOAL_TRACKER_ENV ?? `${process.env.HOME ?? ''}/.goal-tracker.env`
+  if (!file.startsWith('/')) return
+  try {
+    const text = readFileSync(file, 'utf8')
+    for (const rawLine of text.split('\n')) {
+      const line = rawLine.trim()
+      if (!line || line.startsWith('#')) continue
+      const eq = line.indexOf('=')
+      if (eq === -1) continue
+      const key = line.slice(0, eq).trim()
+      const value = line.slice(eq + 1).trim()
+      if (key && process.env[key] === undefined) process.env[key] = value
+    }
+  } catch {
+    // file absent — fall back to env vars
+  }
+}
+loadEnvFile()
 
 interface SetTemplate {
   id: string
@@ -63,7 +85,9 @@ function hasFlag(args: string[], name: string): boolean {
 function usage(): never {
   console.log(`goal-tracker CLI — edit your active workouts.
 
-Auth (env): GOAL_TRACKER_URL, GOAL_TRACKER_EMAIL, GOAL_TRACKER_PASSWORD
+Auth (env or ~/.goal-tracker.env):
+  GOAL_TRACKER_URL, GOAL_TRACKER_EMAIL, GOAL_TRACKER_PASSWORD
+  (a dotfile line each: KEY=value; real env vars win. GOAL_TRACKER_ENV overrides the path.)
 
 Commands:
   list

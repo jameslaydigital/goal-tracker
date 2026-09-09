@@ -16,20 +16,24 @@ to the active list and re-save it as a program there.
 
 ## Running it
 
-From the repo root, with credentials for the target account:
+From the repo root, with credentials for the target account. Credentials come
+from env vars or — much nicer for agents — from `~/.goal-tracker.env`
+(chmod 600, one `KEY=value` per line). Set `GOAL_TRACKER_ENV` to point
+elsewhere. Real env vars win over the file.
 
 ```bash
-export GOAL_TRACKER_URL=https://goal-tracker.progressive-apps.com
-export GOAL_TRACKER_EMAIL=user@example.com
-export GOAL_TRACKER_PASSWORD=...
+# ~/.goal-tracker.env
+GOAL_TRACKER_URL=https://goal-tracker.progressive-apps.com
+GOAL_TRACKER_EMAIL=user@example.com
+GOAL_TRACKER_PASSWORD=...
+
 npm run cli -- <command>
 ```
 
 For local dev, point `GOAL_TRACKER_URL` at `http://localhost:8080`.
 
-Every invocation logs in with the env credentials. Never echo the password into
-the transcript — set it via the shell env before calling, and prefer the user's
-own shell/env rather than hardcoding it in commands you show.
+Never echo the password into the transcript — rely on the dotfile or the
+shell env, and never print the file's contents.
 
 ## Commands
 
