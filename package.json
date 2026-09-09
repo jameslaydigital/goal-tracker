@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "node --watch server/index.ts",
+    "start": "node server/index.ts",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync:test": "node scripts/sync-test.ts",
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -16,6 +21,7 @@
     "@tailwindcss/vite": "^4.3.2",
     "dexie": "^4.4.4",
     "dexie-react-hooks": "^4.4.0",
+    "express": "^5.2.1",
     "peggy": "^5.1.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -24,10 +30,12 @@
     "vite-plugin-pwa": "^1.3.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "fake-indexeddb": "^6.2.5",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
